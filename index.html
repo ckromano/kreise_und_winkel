@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kreis mit dem Zirkel – Radius und Dreieck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#1f2a33; --muted:#5b6670; --bg:#fbfaf6; --card:#fff;
+         --kreis:#2f7de1; --radius:#e5484d; --drei:#2f9e44; --dreiFill:#dff0e3; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Nunito,system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+  .wrap{max-width:980px;margin:0 auto;padding:16px 14px 28px}
+  h1{font-size:clamp(20px,3.4vw,28px);margin:4px 0 2px;font-weight:800}
+  .sub{color:var(--muted);margin:0 0 12px;font-size:15px}
+  .stage{background:var(--card);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.08),0 6px 24px rgba(0,0,0,.05);overflow:hidden}
+  svg{display:block;width:100%;height:auto}
+  .controls{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 16px 16px;flex-wrap:wrap}
+  .btns{display:flex;gap:8px}
+  button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:10px 18px;cursor:pointer;background:#eef0f2;color:var(--ink)}
+  button.primary{background:var(--ink);color:#fff}
+  button:disabled{opacity:.35;cursor:default}
+  .dots{display:flex;gap:6px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#d5d9dd;cursor:pointer;border:0;padding:0}
+  .dot.on{background:var(--ink)}
+  .fade{transition:opacity .6s}
+  .draw{transition:stroke-dashoffset 1s ease}
+  .lbl{font:800 24px Nunito,sans-serif;text-anchor:middle;dominant-baseline:central}
+  @media (prefers-reduced-motion: reduce){.fade,.draw{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Kreis mit dem Zirkel – Radius und Dreieck</h1>
+  <p class="sub">Schritt für Schritt: mit «Weiter» oder «Abspielen».</p>
+  <div class="stage">
+    <svg id="svg" viewBox="0 0 800 470" role="img" aria-label="Animation: Ein Kreis wird mit dem Zirkel gezeichnet, Radien werden eingezeichnet, dann entsteht ein Dreieck mit einer Ecke im Mittelpunkt"></svg>
+    <div class="controls">
+      <div class="dots" id="dots"></div>
+      <div class="btns">
+        <button id="prev">Zurück</button>
+        <button id="play">Abspielen</button>
+        <button id="next" class="primary">Weiter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+const NS="http://www.w3.org/2000/svg", svg=document.getElementById("svg");
+const el=(n,a={},p=svg)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e;};
+const M={x:400,y:250}, R=165, C=2*Math.PI*R;
+const P=deg=>({x:M.x+R*Math.cos(deg*Math.PI/180), y:M.y+R*Math.sin(deg*Math.PI/180)});
+const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---------- Kreis ----------
+const circle=el("circle",{cx:M.x,cy:M.y,r:R,fill:"none",stroke:"var(--kreis)","stroke-width":4,"stroke-dasharray":C,"stroke-dashoffset":C});
+
+// ---------- Radien ----------
+const radAngles=[-140,-60,15,95,170];
+const radii=radAngles.map(a=>{
+  const g=el("g",{class:"fade",opacity:0});
+  const Q=P(a), len=R;
+  const line=el("line",{x1:M.x,y1:M.y,x2:Q.x,y2:Q.y,stroke:"var(--radius)","stroke-width":3.5,"stroke-linecap":"round","stroke-dasharray":len,"stroke-dashoffset":len,class:"draw"},g);
+  const mid={x:(M.x+Q.x)/2,y:(M.y+Q.y)/2}, n={x:-Math.sin(a*Math.PI/180),y:Math.cos(a*Math.PI/180)};
+  const t=el("text",{x:mid.x+n.x*20,y:mid.y+n.y*20,class:"lbl",fill:"var(--radius)"},g); t.textContent="r";
+  const dot=el("circle",{cx:Q.x,cy:Q.y,r:7,fill:"var(--radius)",class:"fade",opacity:0});
+  return {g,line,len,dot};
+});
+
+// ---------- Dreieck ----------
+const A=P(35), B=P(145);
+const triFill=el("polygon",{points:`${M.x},${M.y} ${A.x},${A.y} ${B.x},${B.y}`,fill:"var(--dreiFill)",stroke:"none",class:"fade",opacity:0});
+const sideDefs=[[M,A],[A,B],[B,M]];
+const sides=sideDefs.map(([U,V])=>{const len=Math.hypot(V.x-U.x,V.y-U.y);
+  return {line:el("line",{x1:U.x,y1:U.y,x2:V.x,y2:V.y,stroke:"var(--drei)","stroke-width":4,"stroke-linecap":"round","stroke-linejoin":"round","stroke-dasharray":len,"stroke-dashoffset":len,class:"draw"}),len};});
+const triDots=[A,B].map(Q=>el("circle",{cx:Q.x,cy:Q.y,r:6,fill:"var(--drei)",class:"fade",opacity:0}));
+// r an den zwei Seiten vom Mittelpunkt aus
+const triR=el("g",{class:"fade",opacity:0});
+[[A,1],[B,-1]].forEach(([Q,s])=>{
+  const mid={x:(M.x+Q.x)/2,y:(M.y+Q.y)/2}; const dx=Q.x-M.x, dy=Q.y-M.y, L=Math.hypot(dx,dy);
+  const n={x:-dy/L*s, y:dx/L*s};
+  const t=el("text",{x:mid.x-n.x*22,y:mid.y-n.y*22,class:"lbl",fill:"var(--drei)"},triR); t.textContent="r";
+  // Strichmarke für gleich lange Seiten
+  el("line",{x1:mid.x+n.x*9,y1:mid.y+n.y*9,x2:mid.x-n.x*9,y2:mid.y-n.y*9,stroke:"var(--drei)","stroke-width":3,"stroke-linecap":"round"},triR);
+});
+
+
+// ---------- Winkel im Dreieck ----------
+function sector(V,U,W,r,fill,parent){
+  const a1=Math.atan2(U.y-V.y,U.x-V.x), a2=Math.atan2(W.y-V.y,W.x-V.x);
+  let d=a2-a1; while(d<=-Math.PI)d+=2*Math.PI; while(d>Math.PI)d-=2*Math.PI;
+  const sw=d>0?1:0;
+  el("path",{d:`M${V.x},${V.y} L${V.x+r*Math.cos(a1)},${V.y+r*Math.sin(a1)} A${r},${r} 0 0 ${sw} ${V.x+r*Math.cos(a1+d)},${V.y+r*Math.sin(a1+d)} Z`,fill:fill,"fill-opacity":0.85,stroke:"#1f2a33","stroke-width":1.4},parent);
+  const am=a1+d/2; return {x:V.x+(r+20)*Math.cos(am), y:V.y+(r+20)*Math.sin(am)};
+}
+const angG=el("g",{class:"fade",opacity:0});
+const la=sector(A,M,B,38,"#f08c00",angG), lb=sector(B,A,M,38,"#f08c00",angG), lm=sector(M,A,B,34,"#7048e8",angG);
+[[la,"α","#c25e00"],[lb,"α","#c25e00"],[lm,"γ","#5b3cc4"]].forEach(([p,t,c])=>{const e=el("text",{x:p.x,y:p.y,class:"lbl",fill:c},angG); e.textContent=t;});
+
+// ---------- Mittelpunkt ----------
+el("circle",{cx:M.x,cy:M.y,r:6,fill:"var(--ink)"});
+const mLbl=el("text",{x:M.x-18,y:M.y-20,class:"lbl",fill:"var(--ink)"}); mLbl.textContent="M";
+
+// ---------- Zirkel ----------
+const comp=el("g",{class:"fade"});
+const legN=el("line",{stroke:"#5b6670","stroke-width":7,"stroke-linecap":"round"},comp);
+const legP=el("line",{stroke:"#5b6670","stroke-width":7,"stroke-linecap":"round"},comp);
+const needle=el("line",{stroke:"#1f2a33","stroke-width":2.5,"stroke-linecap":"round"},comp);
+const lead=el("line",{stroke:"#f2c200","stroke-width":5,"stroke-linecap":"round"},comp);
+const leadTip=el("line",{stroke:"#1f2a33","stroke-width":3,"stroke-linecap":"round"},comp);
+const handle=el("line",{stroke:"#1f2a33","stroke-width":8,"stroke-linecap":"round"},comp);
+const hinge=el("circle",{r:9,fill:"#1f2a33"},comp);
+const HH=115; // Höhe des Gelenks
+function placeCompass(deg,Ctr,r,side){
+  Ctr=Ctr||M; r=r||R; side=side||1;
+  const Q={x:Ctr.x+r*Math.cos(deg*Math.PI/180),y:Ctr.y+r*Math.sin(deg*Math.PI/180)}, v={x:Q.x-Ctr.x,y:Q.y-Ctr.y}, L=Math.hypot(v.x,v.y);
+  const n={x:side*v.y/L,y:-side*v.x/L}; const mid={x:(Ctr.x+Q.x)/2,y:(Ctr.y+Q.y)/2};
+  const H={x:mid.x+n.x*HH,y:mid.y+n.y*HH};
+  const towards=(F,T,d)=>{const dx=T.x-F.x,dy=T.y-F.y,l=Math.hypot(dx,dy);return {x:T.x-dx/l*d,y:T.y-dy/l*d};};
+  const nN=towards(H,Ctr,14), nP=towards(H,Q,26), nP2=towards(H,Q,8);
+  legN.setAttribute("x1",H.x);legN.setAttribute("y1",H.y);legN.setAttribute("x2",nN.x);legN.setAttribute("y2",nN.y);
+  needle.setAttribute("x1",nN.x);needle.setAttribute("y1",nN.y);needle.setAttribute("x2",Ctr.x);needle.setAttribute("y2",Ctr.y);
+  legP.setAttribute("x1",H.x);legP.setAttribute("y1",H.y);legP.setAttribute("x2",nP.x);legP.setAttribute("y2",nP.y);
+  lead.setAttribute("x1",nP.x);lead.setAttribute("y1",nP.y);lead.setAttribute("x2",nP2.x);lead.setAttribute("y2",nP2.y);
+  leadTip.setAttribute("x1",nP2.x);leadTip.setAttribute("y1",nP2.y);leadTip.setAttribute("x2",Q.x);leadTip.setAttribute("y2",Q.y);
+  const hTop={x:H.x+n.x*26,y:H.y+n.y*26};
+  handle.setAttribute("x1",H.x);handle.setAttribute("y1",H.y);handle.setAttribute("x2",hTop.x);handle.setAttribute("y2",hTop.y);
+  hinge.setAttribute("cx",H.x);hinge.setAttribute("cy",H.y);
+}
+placeCompass(0);
+
+// ---------- Szene 1 gruppieren ----------
+const scene1=document.createElementNS(NS,"g"); scene1.setAttribute("class","fade");
+[...svg.childNodes].forEach(nd=>{ if(nd!==comp) scene1.appendChild(nd); });
+svg.insertBefore(scene1, comp);
+
+// ---------- Szene 2: gleichseitiges Dreieck ----------
+const scene2=document.createElementNS(NS,"g"); scene2.setAttribute("class","fade"); scene2.setAttribute("opacity",0);
+svg.insertBefore(scene2, comp);
+const S2=240, A2={x:280,y:390}, B2={x:520,y:390}, C2={x:400,y:390-S2*Math.sqrt(3)/2};
+const s2=(n,a)=>el(n,a,scene2);
+function arcPath(Ctr,r,d1,d2){const p=d=>({x:Ctr.x+r*Math.cos(d*Math.PI/180),y:Ctr.y+r*Math.sin(d*Math.PI/180)});
+  const a=p(d1),b=p(d2); const sweep=d2>d1?1:0; return `M${a.x},${a.y} A${r},${r} 0 0 ${sweep} ${b.x},${b.y}`;}
+const ARC1={from:-42,to:-78}, ARC2={from:222,to:258};
+const arc1=s2("path",{d:arcPath(A2,S2,ARC1.from,ARC1.to),fill:"none",stroke:"var(--kreis)","stroke-width":3});
+const arc2=s2("path",{d:arcPath(B2,S2,ARC2.from,ARC2.to),fill:"none",stroke:"var(--kreis)","stroke-width":3});
+const arcLen=S2*Math.abs(ARC1.to-ARC1.from)*Math.PI/180;
+[arc1,arc2].forEach(a=>{a.setAttribute("stroke-dasharray",arcLen);a.setAttribute("stroke-dashoffset",arcLen);});
+const tri2Fill=s2("polygon",{points:`${A2.x},${A2.y} ${B2.x},${B2.y} ${C2.x},${C2.y}`,fill:"var(--dreiFill)",class:"fade",opacity:0});
+const mk=(U,V)=>{const len=Math.hypot(V.x-U.x,V.y-U.y);return {line:s2("line",{x1:U.x,y1:U.y,x2:V.x,y2:V.y,stroke:"var(--drei)","stroke-width":4,"stroke-linecap":"round","stroke-dasharray":len,"stroke-dashoffset":len,class:"draw",opacity:0}),len};};
+const baseAB=mk(A2,B2), sideAC=mk(A2,C2), sideBC=mk(B2,C2);
+// Winkel (alle gleich)
+const ang2=el("g",{class:"fade",opacity:0},scene2);
+const lA=sector(A2,B2,C2,40,"#f08c00",ang2), lB=sector(B2,C2,A2,40,"#f08c00",ang2), lC=sector(C2,A2,B2,40,"#f08c00",ang2);
+[lA,lB,lC].forEach(p=>{const e=el("text",{x:p.x,y:p.y,class:"lbl",fill:"#c25e00"},ang2); e.textContent="α";});
+// Strichmarken: alle Seiten gleich lang
+const ticks2=el("g",{class:"fade",opacity:0},scene2);
+[[A2,B2],[A2,C2],[B2,C2]].forEach(([U,V])=>{const m={x:(U.x+V.x)/2,y:(U.y+V.y)/2},dx=V.x-U.x,dy=V.y-U.y,L=Math.hypot(dx,dy),n={x:-dy/L,y:dx/L};
+  el("line",{x1:m.x+n.x*10,y1:m.y+n.y*10,x2:m.x-n.x*10,y2:m.y-n.y*10,stroke:"var(--drei)","stroke-width":3,"stroke-linecap":"round"},ticks2);});
+// Punkte und Namen
+const ptA=s2("circle",{cx:A2.x,cy:A2.y,r:6,fill:"var(--ink)",class:"fade",opacity:0}), ptB=s2("circle",{cx:B2.x,cy:B2.y,r:6,fill:"var(--ink)",class:"fade",opacity:0}), ptC=s2("circle",{cx:C2.x,cy:C2.y,r:6,fill:"var(--ink)",class:"fade",opacity:0});
+const tA=s2("text",{x:A2.x-20,y:A2.y+18,class:"lbl",fill:"var(--ink)",class:"lbl fade",opacity:0}); tA.textContent="A";
+const tB=s2("text",{x:B2.x+20,y:B2.y+18,class:"lbl fade",fill:"var(--ink)",opacity:0}); tB.textContent="B";
+const tC=s2("text",{x:C2.x,y:C2.y-24,class:"lbl fade",fill:"var(--ink)",opacity:0}); tC.textContent="C";
+
+// Radius = Strecke AB hervorheben
+const rAB=el("g",{class:"fade",opacity:0},scene2);
+el("line",{x1:A2.x,y1:A2.y,x2:B2.x,y2:B2.y,stroke:"var(--radius)","stroke-width":6,"stroke-linecap":"round"},rAB);
+const rABt=el("text",{x:(A2.x+B2.x)/2,y:A2.y+30,class:"lbl",fill:"var(--radius)"},rAB); rABt.textContent="r = AB";
+
+// Zirkel-Animation für die Bögen: zuerst drehen, dann zeichnen
+let raf2=null;
+function compassArc(Ctr,side,startDeg,arc,path,animate,done){
+  cancelAnimationFrame(raf2);
+  const finish=()=>{path.setAttribute("stroke-dashoffset",0); placeCompass(arc.to,Ctr,S2,side); if(done)done();};
+  if(!animate||reduce){finish();return;}
+  const t0=performance.now(), d1=800, d2=1500;
+  path.setAttribute("stroke-dashoffset",arcLen);
+  const step=t=>{const e=t-t0;
+    if(e<d1){const k=e/d1; placeCompass(startDeg+(arc.from-startDeg)*k,Ctr,S2,side);}
+    else{const k=Math.min(1,(e-d1)/d2); placeCompass(arc.from+(arc.to-arc.from)*k,Ctr,S2,side); path.setAttribute("stroke-dashoffset",arcLen*(1-k)); if(k>=1){if(done)done();return;}}
+    raf2=requestAnimationFrame(step);};
+  raf2=requestAnimationFrame(step);
+}
+
+// ---------- Kreis-Animation ----------
+let raf=null;
+function drawCircle(animate){
+  cancelAnimationFrame(raf);
+  if(!animate||reduce){ circle.setAttribute("stroke-dashoffset",0); placeCompass(360); return; }
+  const dur=2800, t0=performance.now();
+  const step=t=>{ const k=Math.min(1,(t-t0)/dur), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+    circle.setAttribute("stroke-dashoffset",C*(1-e)); placeCompass(360*e);
+    if(k<1) raf=requestAnimationFrame(step); };
+  raf=requestAnimationFrame(step);
+}
+function resetCircle(){ cancelAnimationFrame(raf); circle.setAttribute("stroke-dashoffset",C); placeCompass(0); }
+
+// ---------- Schritte ----------
+const N=14; let cur=-1;
+const dots=document.getElementById("dots");
+for(let i=0;i<N;i++){const d=document.createElement("button");d.className="dot";d.setAttribute("aria-label","Schritt "+(i+1));d.onclick=()=>{stopPlay();go(i);};dots.appendChild(d);}
+const setDraw=(line,len,on,delay)=>{line.style.transitionDelay=(delay||0)+"ms";line.setAttribute("stroke-dashoffset",on?0:len);};
+const op=(e,v,delay)=>{e.style.transitionDelay=(delay||0)+"ms";e.setAttribute("opacity",v);};
+
+function go(i){
+  const forward=(i===cur+1);
+  cur=i;
+  [...dots.children].forEach((d,k)=>d.classList.toggle("on",k===i));
+  document.getElementById("prev").disabled=i===0;
+  document.getElementById("next").disabled=i===N-1;
+
+  // 0: Zirkel · 1: Kreis · 2: Punkte auf dem Kreis · 3: Radien · 4: Radien weg · 5: Dreieck · 6: r am Dreieck · 7: gleich grosse Winkel · 8–12: gleichseitiges Dreieck konstruieren
+  if(i===0){ resetCircle(); } else if(i===1){ drawCircle(forward); } else if(i<=7){ drawCircle(false); } else { cancelAnimationFrame(raf); circle.setAttribute('stroke-dashoffset',0); }
+  if(i<=7) op(comp, i<=1?1:0);
+
+  radii.forEach((r,k)=>{
+    const showDot=(i===2||i===3), show=(i===3);
+    op(r.dot, showDot?1:0, i===2&&forward?k*350:0);
+    op(r.g, show?1:0, show&&forward?k*450:0);
+    setDraw(r.line, r.len, show, show&&forward?k*450:0);
+  });
+
+  const triOn=i>=5;
+  sides.forEach((s,k)=>{const d=triOn&&forward&&i===5?k*900:0; setDraw(s.line,s.len,triOn,d); s.line.style.transition="stroke-dashoffset 1s ease, opacity 0s"; s.line.style.transitionDelay=d+"ms"; s.line.setAttribute("opacity",triOn?1:0);});
+  triDots.forEach((d,k)=>op(d,triOn?1:0, triOn&&forward&&i===5?(k===0?900:1800):0));
+  op(triFill, triOn?1:0, triOn&&forward&&i===5?2600:0);
+  op(triR, i>=6?1:0);
+  op(angG, i>=7?1:0);
+
+  // ----- Szene 2 -----
+  op(scene1, i<=7?1:0); op(scene2, i>=8?1:0);
+  // 8: Strecke AB · 9: Zirkel auf AB einstellen · 10: Bogen um A · 11: Bogen um B, Punkt C · 12: Dreieck · 13: alle Winkel gleich
+  baseAB.line.style.transition="stroke-dashoffset 1s ease"; baseAB.line.setAttribute("opacity",i>=8?1:0);
+  setDraw(baseAB.line,baseAB.len,i>=8, i===8&&forward?500:0);
+  [ptA,tA,ptB,tB].forEach(e=>op(e,i>=8?1:0, i===8&&forward?300:0));
+  op(rAB, (i>=9&&i<=11)?1:0, i===9&&forward?400:0);
+  if(i<10){ cancelAnimationFrame(raf2); arc1.setAttribute("stroke-dashoffset",arcLen); }
+  if(i<11){ arc2.setAttribute("stroke-dashoffset",arcLen); }
+  if(i===9){ op(comp,1); cancelAnimationFrame(raf2); placeCompass(0,A2,S2,1); }
+  else if(i===10){ op(comp,1); compassArc(A2,1,0,ARC1,arc1,forward); }
+  else if(i===11){ op(comp,1); arc1.setAttribute("stroke-dashoffset",0); compassArc(B2,-1,180,ARC2,arc2,forward,()=>{op(ptC,1);op(tC,1);}); }
+  else if(i>11){ arc1.setAttribute("stroke-dashoffset",0); arc2.setAttribute("stroke-dashoffset",0); }
+  if(i>=8 && (i<9 || i>11)) op(comp,0);
+  if(i!==11){ op(ptC,i>11?1:0); op(tC,i>11?1:0); }
+  [sideAC,sideBC].forEach((sd,k)=>{const d=i===12&&forward?k*900:0; sd.line.style.transition="stroke-dashoffset 1s ease, opacity 0s"; sd.line.style.transitionDelay=d+"ms"; sd.line.setAttribute("opacity",i>=12?1:0); sd.line.setAttribute("stroke-dashoffset",i>=12?0:sd.len);});
+  op(tri2Fill,i>=12?1:0, i===12&&forward?1900:0);
+  op(ticks2,i>=12?1:0, i===12&&forward?2100:0);
+  op(ang2,i>=13?1:0);
+}
+
+let timer=null; const playBtn=document.getElementById("play");
+const delays=[1500,3600,2800,3400,1500,3600,2500,2500,2200,2500,2800,3000,3200,2500];
+function stopPlay(){clearTimeout(timer);timer=null;playBtn.textContent="Abspielen";}
+function loop(){ if(cur<N-1){ go(cur+1); timer=setTimeout(loop,delays[cur]); } else stopPlay(); }
+playBtn.onclick=()=>{ if(timer){stopPlay();return;} if(cur>=N-1) go(0); playBtn.textContent="Pause"; timer=setTimeout(loop,delays[cur]); };
+document.getElementById("next").onclick=()=>{stopPlay();if(cur<N-1)go(cur+1);};
+document.getElementById("prev").onclick=()=>{stopPlay();if(cur>0)go(cur-1);};
+document.addEventListener("keydown",e=>{ if(e.target.tagName==="INPUT")return;
+  if(e.key==="ArrowRight")document.getElementById("next").click(); if(e.key==="ArrowLeft")document.getElementById("prev").click();});
+go(0);
+})();
+</script>
+</body>
+</html>
